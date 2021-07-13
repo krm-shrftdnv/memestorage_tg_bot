@@ -1,0 +1,7 @@
+{
+    "name": "krm_shrftdnv/test_telegram_bot",
+    "require": {
+        "longman/telegram-bot": "^0.72.0",
+      "ext-curl": "*"
+    }
+}
