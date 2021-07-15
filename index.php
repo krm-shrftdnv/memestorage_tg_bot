@@ -1,5 +1,6 @@
 <?php
 
+use JetBrains\PhpStorm\Pure;
 use Longman\TelegramBot\Entities\InlineQuery\InlineQueryResultPhoto;
 use Longman\TelegramBot\Entities\InputMedia\InputMediaPhoto;
 use Longman\TelegramBot\Entities\InputMedia\InputMediaVideo;
@@ -17,19 +18,19 @@ class TelegramBot
 
     public function __construct()
     {
-        $this->adminId = '';
+        $this->adminId = getenv('ADMIN_ID');
 
         try {
-            $this->telegram = new Telegram('', 'mem_storage_bot');
+            $this->telegram = new Telegram(getenv('TELEGRAM_TOKEN'), getenv('BOT_USERNAME'));
             Request::initialize($this->telegram);
         } catch (TelegramException $e) {
             $this->sendExceptionMessage($e);
         }
     }
 
-    public function getToken(): string
+    #[Pure] public function getToken(): string
     {
-        return '';
+        return $this->telegram->getApiKey();
     }
 
     public function sendMessage(string $channelId, string $text): ?ServerResponse
@@ -55,14 +56,14 @@ class TelegramBot
         $this->sendMessage($this->adminId, $message);
     }
 
-    public function sendImage($channelId, $photoUrl, $text = ""): ?ServerResponse
+    public function sendImage(string $channelId, string $photoUrl, string $text = null): ?ServerResponse
     {
         $sendingPhoto = [
             'chat_id' => $channelId,
             'photo' => $photoUrl,
             'disable_notification' => 1,
         ];
-        if (strlen($text) > 0) {
+        if ($text !== null) {
             $sendingPhoto['text'] = $text;
         }
         try {
