@@ -260,7 +260,7 @@ function handleMessage(array $eventData, TelegramBot $telegramBot): void
         }
     } else {
         $commands = findCommands($message['text']);
-
+        $description = $message['text'];
         if (sizeof($commands) > 0) {
             switch ($commands[0]) {
                 case 'add':
@@ -275,82 +275,93 @@ function handleMessage(array $eventData, TelegramBot $telegramBot): void
                     } catch (UserNotConnectedException $e) {
                         $telegramBot->sendMessage($chatId, "You haven't connected telegram with your memestorage account yet.");
                     }
+                    return;
                     break;
                 }
                 case 'search':
                 {
-                    $memes = [];
                     $tagsMemes = [];
                     $descriptionPublicMemes = [];
                     $descriptionPersonalMemes = [];
 
-                    $searchingStartedMessage = $telegramBot->sendMessage($chatId, 'searching...');
+//                    $searchingStartedMessage = $telegramBot->sendMessage($chatId, 'searching...');
                     $description = trim(str_replace('/' . $commands[0], '', $message['text']));
 
-                    if (strlen($description) > 0) {
-                        $description = trim($description);
-                        try {
-                            if (strlen($description) > 0) {
-                                $query = [
-                                    'telegram_id' => $fromId,
-                                    'description' => $description,
-                                ];
-                                $pathDescriptionPersonal = '/oauth/telegram/user/search';
-                                $descriptionPersonalMemes = getMemesByRequest($pathDescriptionPersonal, $query,
-                                    $telegramBot);
-
-                                $pathDescriptionPublic = '/api/storage/search/description';
-                                $descriptionPublicMemes = getMemesByRequest($pathDescriptionPublic, $query,
-                                    $telegramBot);
-                                $memes = array_merge($descriptionPersonalMemes, $descriptionPublicMemes);
-                                $memes = removeMemesDuplicates($memes);
-
-                                if (sizeof($memes) > 0) {
-                                    $mediaPart = [];
-                                    foreach ($memes as $mem) {
-                                        $mediaPart[] = [
-                                            'type' => 'photo',
-                                            'media' => $mem['url'],
-                                        ];
-                                    }
-                                    $response = $telegramBot->sendMediaGroup($chatId, $mediaPart);
-                                    if (!$response->getOk()) {
-                                        $response = $telegramBot->sendDocument($chatId, $mem['url']);
-                                        if (!$response->getOk()) {
-                                            $telegramBot->sendMessage($chatId, $mem['url']);
-                                        }
-                                    }
-                                } else {
-                                    $telegramBot->sendMessage($chatId, "No memes found on your request.");
-                                }
-                            } else {
-                                $telegramBot->sendMessage($chatId, 'Type description after /search command.');
-                            }
-
-                        } catch (UserNotConnectedException $e) {
-                            $telegramBot->sendMessage($chatId,
-                                "You haven't connected telegram with your memestorage account yet.");
-                        }
-                        break;
-                    }
+                    break;
                 }
                 case 'register':
                 {
                     $telegramBot->sendMessage($chatId, 'Go to www.memestorage.tk/register.');
+                    return;
                     break;
                 }
                 case 'login':
                 {
                     $telegramBot->sendMessage($chatId,
                         "Go to www.memestorage.tk/auth and set your telegram id ($chatId) in settings.");
+                    return;
                     break;
                 }
                 case 'start':
                 {
+                    return;
                     break;
                 }
             }
         }
+        if (strlen($description) > 0) {
+            $description = trim($description);
+            try {
+                if (strlen($description) > 0) {
+                    $query = [
+                        'telegram_id' => $fromId,
+                        'description' => $description,
+                    ];
+                    $pathDescriptionPersonal = '/oauth/telegram/user/search';
+                    $descriptionPersonalMemes = getMemesByRequest($pathDescriptionPersonal, $query,
+                        $telegramBot);
+
+                    $pathDescriptionPublic = '/api/storage/search/description';
+                    $descriptionPublicMemes = getMemesByRequest($pathDescriptionPublic, $query,
+                        $telegramBot);
+                    $memes = [];
+                    if (count($descriptionPersonalMemes) > 0 || count($descriptionPublicMemes) > 0) {
+                        foreach (array_merge($descriptionPersonalMemes, $descriptionPublicMemes) as $meme) {
+                            if (!in_array($meme, $memes)) {
+                                $memes[] = $meme;
+                            }
+                        }
+                    }
+                    $memes = removeMemesDuplicates($memes);
+
+                    if (sizeof($memes) > 0) {
+                        $mediaPart = [];
+                        foreach ($memes as $mem) {
+                            $mediaPart[] = [
+                                'type' => 'photo',
+                                'media' => $mem['url'],
+                            ];
+                        }
+                        $response = $telegramBot->sendMediaGroup($chatId, $mediaPart);
+                        if (!$response->getOk()) {
+                            $response = $telegramBot->sendDocument($chatId, $mem['url']);
+                            if (!$response->getOk()) {
+                                $telegramBot->sendMessage($chatId, $mem['url']);
+                            }
+                        }
+                    } else {
+                        $telegramBot->sendMessage($chatId, "No memes found on your request.");
+                    }
+                } else {
+                    $telegramBot->sendMessage($chatId, 'Type description after /search command.');
+                }
+
+            } catch (UserNotConnectedException $e) {
+                $telegramBot->sendMessage($chatId,
+                    "You haven't connected telegram with your memestorage account yet.");
+            }
+        }
+
     }
 
 }
@@ -382,13 +393,14 @@ function findCommands(string $messageText): array
         $commands);
 }
 
-function removeMemesDuplicates (array $memes): array
+function removeMemesDuplicates(array $memes): array
 {
     $uniqueMemes = [];
     $uniqueIds = [];
     foreach ($memes as $meme) {
         if (!in_array($meme['id'], $uniqueIds)) {
             $uniqueMemes[] = $meme;
+            $uniqueIds[] = $meme['id'];
         }
     }
     return $uniqueMemes;
